@@ -46,7 +46,17 @@ def rescale(value, r1min, r1max, r2min, r2max, force_float=False):
     return ((float(value - r1min) / (r1max - r1min)) * (r2max - r2min)) + r2min
 
 
-class BaseGauge(object):
+class BaseDisplay(object):
+    """
+    Base for all the display objects.
+    Mostly defines the base structure that displays should have:
+
+    * Accept a surface as the first constructor argument
+
+    * Has a .draw() method, called when an update of the surface
+      is requested.
+    """
+
     def __init__(self, surface):
         self.surface = surface
 
@@ -69,7 +79,7 @@ class WithBackgroundMixin(object):
         return self._background_surface
 
 
-class ClockDisplay(BaseGauge, WithBackgroundMixin):
+class ClockDisplay(BaseDisplay, WithBackgroundMixin):
     """Just a clock, displaying time"""
 
     border_color = colors['base0']
@@ -147,7 +157,7 @@ class ClockDisplay(BaseGauge, WithBackgroundMixin):
                 self.surface, color, center, (x, y))
 
 
-class VirualHorizonDisplay(BaseGauge, WithBackgroundMixin):
+class VirualHorizonDisplay(BaseDisplay, WithBackgroundMixin):
     border_color = colors['base0']
     border_width = 1
     needle_pitch_color = colors['red']
@@ -250,7 +260,7 @@ class VirualHorizonDisplay(BaseGauge, WithBackgroundMixin):
             self.needle_width)
 
 
-class LinesDisplay(BaseGauge, WithBackgroundMixin):
+class LinesDisplay(BaseDisplay, WithBackgroundMixin):
     border_color = colors['base0']
     border_width = 1
     line_colors = {
