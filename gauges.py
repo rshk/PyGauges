@@ -19,28 +19,30 @@ import time
 import pygame
 
 
-colors = {}
-colors['base03'] = (0x00, 0x2b, 0x36)
-colors['base02'] = (0x07, 0x36, 0x42)
-colors['base01'] = (0x58, 0x6e, 0x75)
-colors['base00'] = (0x65, 0x7b, 0x83)
-colors['base0'] = (0x83, 0x94, 0x96)
-colors['base1'] = (0x93, 0xa1, 0xa1)
-colors['base2'] = (0xee, 0xe8, 0xd5)
-colors['base3'] = (0xfd, 0xf6, 0xe3)
-colors['yellow'] = (0xb5, 0x89, 0x00)
-colors['orange'] = (0xcb, 0x4b, 0x16)
-colors['red'] = (0xdc, 0x32, 0x2f)
-colors['magenta'] = (0xd3, 0x36, 0x82)
-colors['violet'] = (0x6c, 0x71, 0xc4)
-colors['blue'] = (0x26, 0x8b, 0xd2)
-colors['cyan'] = (0x2a, 0xa1, 0x98)
-colors['green'] = (0x85, 0x99, 0x00)
+## The Solarized color theme
+colors = {
+    'base03': (0x00, 0x2b, 0x36),
+    'base02': (0x07, 0x36, 0x42),
+    'base01': (0x58, 0x6e, 0x75),
+    'base00': (0x65, 0x7b, 0x83),
+    'base0': (0x83, 0x94, 0x96),
+    'base1': (0x93, 0xa1, 0xa1),
+    'base2': (0xee, 0xe8, 0xd5),
+    'base3': (0xfd, 0xf6, 0xe3),
+    'yellow': (0xb5, 0x89, 0x00),
+    'orange': (0xcb, 0x4b, 0x16),
+    'red': (0xdc, 0x32, 0x2f),
+    'magenta': (0xd3, 0x36, 0x82),
+    'violet': (0x6c, 0x71, 0xc4),
+    'blue': (0x26, 0x8b, 0xd2),
+    'cyan': (0x2a, 0xa1, 0x98),
+    'green': (0x85, 0x99, 0x00),
+}
 
 
 def rescale(value, r1min, r1max, r2min, r2max, force_float=False):
     """
-    Similar to r2min map(). Performs a value convertion
+    Similar to C's ``map()``. Performs a value convertion
     between two scales.
     """
     return ((float(value - r1min) / (r1max - r1min)) * (r2max - r2min)) + r2min
@@ -273,6 +275,10 @@ class VirualHorizonDisplay(BaseDisplay, WithBackgroundMixin):
 
 
 class LinesDisplay(BaseDisplay, WithBackgroundMixin):
+    """
+    A display showing a "lines" greaph
+    """
+
     border_color = colors['base0']
     border_width = 1
     line_colors = {
@@ -292,28 +298,46 @@ class LinesDisplay(BaseDisplay, WithBackgroundMixin):
     # Y axis range
     ymin, ymax = -20, 20
 
+    # Amount of lines for this display
+    lines_count = 8
+
     def __init__(self, *a, **kw):
         super(LinesDisplay, self).__init__(*a, **kw)
 
         self.lines = {}
-        for i in xrange(8):
+        for i in xrange(self.lines_count):
             self.lines[i] = deque(maxlen=self.max_values)
 
+    def _read_line(self, line_id, cur_time=None):
+        if cur_time is None:
+            cur_time = time.time()
+        ang1 = math.radians(cur_time)
+        if line_id == 0:
+            return (math.sin(ang1 * 20) +
+                    math.cos(ang1 * 667) +
+                    math.cos(ang1 * 1024)) * 3 + 8
+        if line_id == 1:
+            return random.betavariate(3, 5) * 6 - 10,
+        if line_id == 2:
+            return math.sin(ang1 * 60) * 18
+        if line_id == 3:
+            return math.cos(ang1 * 60) * 18
+        if line_id == 4:
+            return math.sin(ang1 * 240) * 10
+        if line_id == 5:
+            return math.cos(ang1 * 240) * 10
+        if line_id == 6:
+            return 1
+        if line_id == 7:
+            return (math.cos(ang1 * 1000) + math.cos(ang1 * 300)) * 4
+        return 0  # other lines always read '0'
+
     def read_data(self):
-        t = time.time()
-        ang1 = math.radians(t)
-        return {
-            0: (math.sin(ang1 * 20) +
-                math.cos(ang1 * 667) +
-                math.cos(ang1 * 1024)) * 3 + 8,
-            1: random.betavariate(3, 5) * 6 - 10,
-            2: math.sin(ang1 * 60) * 18,
-            3: math.cos(ang1 * 60) * 18,
-            4: math.sin(ang1 * 240) * 10,
-            5: math.cos(ang1 * 240) * 10,
-            6: 0,
-            7: (math.cos(ang1 * 1000) + math.cos(ang1 * 300)) * 4,
-        }
+        cur_time = time.time()
+        data = {}
+        for line_id in xrange(self.lines_count):
+            data[line_id] = self._read_line(line_id, cur_time)
+        return data
 
     def draw_background(self, surface):
         surface.fill(colors['base03'])
