@@ -317,7 +317,7 @@ class LinesDisplay(BaseDisplay, WithBackgroundMixin):
                     math.cos(ang1 * 667) +
                     math.cos(ang1 * 1024)) * 3 + 8
         if line_id == 1:
-            return random.betavariate(3, 5) * 6 - 10,
+            return random.betavariate(3, 5) * 6 - 10
         if line_id == 2:
             return math.sin(ang1 * 60) * 18
         if line_id == 3:
