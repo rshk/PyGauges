@@ -1,3 +1,11 @@
-*~
+*.egg
+*.egg-info
 *.pyc
-/.ropeproject
+*~
+.\#*
+.cache
+.ropeproject
+/build
+/dist
+\#*\#
+__pycache__
