@@ -20,6 +20,7 @@ import pygame
 
 
 ## The Solarized color theme
+## Todo: we need a nicer way to define customizable color themes
 colors = {
     'base03': (0x00, 0x2b, 0x36),
     'base02': (0x07, 0x36, 0x42),
