@@ -40,6 +40,27 @@ of each source. (For example, in certain cases we want PUSH vs PULL retrieval
 method, keep historical data, get a bunch of data at once, ...)
 
 
+Todo List
+=========
+
+* Add support for plugging actual "probes" to the displays, find most
+  use cases and make sure we can satisfy all
+
+* More base objects, for example the "with background" displays can be
+  made into a "multilayer" display.
+
+* Better mixins functionality. We risk to have conflicts by using
+  mixins too much: we need a better way to provide "pluggable"
+  functionality.
+
+* Allow a better way to "theme" displays: user should be able
+  to select a "base theme" per application / dashboard / display.
+
+  Displays should be able to choose the right color to use
+  from the specified palette.
+
+
+
 License (BSD 3-Clause)
 ======================
 
