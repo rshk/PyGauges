@@ -18,21 +18,39 @@ from .utils import colors, rescale
 class ClockDisplay(BaseDisplay, WithBackgroundMixin):
     """Just a clock, displaying time"""
 
+    background_color = colors['base02']
     border_color = colors['base0']
     border_width = 3
 
     needle_color = colors['base2']
 
     labels_color = colors['base00']
-    labels_color_lc = colors['base02']
+#    labels_color_lc = colors['base01']
+
+    draw_numbers = True
+
+    @property
+    def numbers_font(self):
+        font_size = min(*self.surface_size) / 20
+        if getattr(self, '_numbers_font', None) is None:
+            self._numbers_font = pygame.font.SysFont(
+                'Orbitron, monospace', font_size, True, False)
+        return self._numbers_font
 
     def draw_background(self, surface):
         width, height = surface.get_width(), surface.get_height()
         radius = min(width, height) / 2
         center = (width / 2, height / 2)
 
-        surface.fill(colors['base03'])
+        # surface.fill(self.background_color)
+        surface.fill((0, 0, 0, 0))  # Blank
 
+        pygame.draw.circle(
+            surface,
+            self.background_color,
+            center,
+            radius,
+            0)
         pygame.draw.circle(
             surface,
             self.border_color,
@@ -42,17 +60,39 @@ class ClockDisplay(BaseDisplay, WithBackgroundMixin):
 
         for angle in xrange(0, 360, 6):
             rad_angle = math.radians(angle)
-            x = center[0] + int(math.cos(rad_angle) * (radius - 20))
-            y = center[1] + int(math.sin(rad_angle) * (radius - 20))
+
+            dx = math.cos(rad_angle)
+            dy = math.sin(rad_angle)
+
+            x = center[0] + int(dx * (radius - 20))
+            y = center[1] + int(dy * (radius - 20))
 
             if angle % 30 == 0:
-                color, width = self.labels_color, 3
-            else:
-                color, width = self.labels_color_lc, 1
+                #color, width = self.labels_color, 3
 
-            pygame.draw.circle(
-                surface,
-                color, (x, y), width, 0)
+                #text_x = center[0] + int(math.cos(rad_angle) * (radius - 40))
+                #text_y = center[1] + int(math.sin(rad_angle) * (radius - 40))
+                if self.draw_numbers:
+                    hour = ((angle / 30) + 3) % 12
+                    if hour == 0:
+                        hour = 12
+                    text = self.numbers_font.render(
+                        str(hour), True, self.labels_color)
+                    text_rect = text.get_rect()
+                    text_rect.center = x, y
+                    surface.blit(text, text_rect)
+                else:
+                    pygame.draw.circle(
+                        surface,
+                        self.labels_color, (x, y), 3, 0)
+
+            else:
+                x1 = center[0] + int(dx * (radius - 10))
+                y1 = center[1] + int(dy * (radius - 10))
+                x2 = center[0] + int(dx * (radius - 24))
+                y2 = center[1] + int(dy * (radius - 24))
+                pygame.draw.aaline(
+                    surface, self.labels_color, (x1, y1), (x2, y2))
 
     def read_data(self):
         now = datetime.datetime.now()

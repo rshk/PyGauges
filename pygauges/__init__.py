@@ -8,18 +8,34 @@ The idea is:
 
 * We have a bunch of gauges that are drawn on the dashboard
 * We have a bunch of sensors that are attached to gauge lines
+
+Objects:
+
+* Application -- acts as container for the whole thing;
+  manages the main PyGame screen, rendering, etc.
+
+* Dashboard -- a frame on which Displays can be placed.
+  Manages layouting and rendering of the contained panels.
+
+* Display -- an object responsible of drawing the current
+  display on the given surface.
 """
 
 import pygame
 
+from .mixins import WithChildrenMixin
 from .utils import colors
 
 
-class Dashboard(object):
-    def __init__(self, surface):
+class Dashboard(WithChildrenMixin, object):
+    background_color = (0x11, 0x11, 0x11)
+
+    def __init__(self, surface=None):
         self.surface = surface
 
     def draw(self):
+        if self.surface is None:
+            return
         pass
 
 
@@ -28,17 +44,71 @@ class ApplicationQuit(Exception):
     pass
 
 
-class Application(object):
+class Application(WithChildrenMixin, object):
+    application_title = "PyGauges Dashboard"
+    max_fps = 50
+    show_fps = True
+
+    # _windowed_size = (1280, 1024)
+    # _fullscreen_size = None
+    _fullscreen = False
+
     def __init__(self):
+
         pygame.init()
-        pygame.display.set_caption("Gauges dashboard")
-        screen_size = (1280, 1024)
-        self.max_fps = 50
-        self.screen = pygame.display.set_mode(screen_size, pygame.DOUBLEBUF)
+        pygame.display.set_caption(self.application_title)
+
+        self._windowed_size = (1280, 1024)
+        self._fullscreen_size = max(pygame.display.list_modes())
+        self._fullscreen = False
+
+        ## Set window mode + resolution
+        self.set_video_mode(self._windowed_size, False)
+
         self.clock = pygame.time.Clock()
+
+        ## List of displays to be drawn on this application
         self.displays = []
 
-        self.fps_font = pygame.font.SysFont('monospace', 20, True, False)
+        ## Orbitron is a quite cool font, under Open Font License
+        ## See: https://www.theleagueofmoveabletype.com/orbitron
+        self.fps_font = pygame.font.SysFont(
+            'Orbitron, monospace', 20, True, False)
+
+    def set_video_mode(self, resolution=None, fullscreen=False):
+        """
+        Change the current video mode.
+
+        :param resolution:
+            The new resolution to set, or None for autodiscover.
+            If no resolution is specified, the last one for window/fullscreen
+            will be used. If no fullscreen resolution is set, the largest
+            available will be autoselect.
+        :param fullscreen:
+            Whether to go fullscreen or not.
+        """
+        screen_flags = pygame.DOUBLEBUF | pygame.RESIZABLE
+        if fullscreen:
+            screen_flags |= pygame.FULLSCREEN
+
+        ## Store the fullscreen status in the object
+        self._fullscreen = fullscreen
+
+        if resolution is None:
+            ## We want to use the previous resolution for the
+            ## current fullscreen/windowed mode.
+            if fullscreen:
+                resolution = self._fullscreen_size
+            else:
+                resolution = self._windowed_size
+        else:
+            ## We store the new resolution for later reuse..
+            if fullscreen:
+                self._fullscreen_size = resolution
+            else:
+                self._windowed_size = resolution
+
+        self.screen = pygame.display.set_mode(resolution, screen_flags)
 
     def mainloop(self):
         while True:
@@ -59,16 +129,22 @@ class Application(object):
 
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
+                ## ESC means "quit"
                 raise ApplicationQuit()
+
+            elif event.key == pygame.K_F11:
+                ## F11 means "toggle fullscreen"
+                self.set_video_mode(fullscreen=not self._fullscreen)
 
             elif event.key == pygame.K_F5:
                 ## F5 means "do a full refresh"
-                #_force_refresh = True
 
                 # This is to make the screen "flash"
                 self.screen.fill([0xff, 0xff, 0xff])
                 pygame.display.flip()
                 pygame.time.delay(40)
+
+                # then, stuff will be refreshed automatically..
 
     def draw(self):
         ## Do a full redraw
@@ -114,6 +190,7 @@ class Application(object):
                 self.screen.get_height())
 
     def new_surface(self, width, height):
+        #return pygame.surface.Surface((width, height), flags=pygame.SRCALPHA)
         return pygame.surface.Surface((width, height))
 
     def __del__(self):
