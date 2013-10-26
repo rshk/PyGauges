@@ -10,47 +10,39 @@ import time
 
 import pygame
 
-from .base import BaseDisplay
-from .mixins import WithBackgroundMixin
-from .utils import colors, rescale
+from .base import BaseDisplay, WithBackground
+from .utils import colors, rescale, lazy_property
 
 
-class ClockDisplay(BaseDisplay, WithBackgroundMixin):
+class ClockDisplay(WithBackground, BaseDisplay):
     """Just a clock, displaying time"""
 
-    background_color = colors['base02']
+    ## Style
+    background_color = colors['base03']
+    inner_background_color = colors['base02']
     border_color = colors['base0']
     border_width = 3
-
     needle_color = colors['base2']
-
     labels_color = colors['base00']
-#    labels_color_lc = colors['base01']
-
     draw_numbers = True
 
-    @property
+    @lazy_property
     def numbers_font(self):
-        font_size = min(*self.surface_size) / 20
-        if getattr(self, '_numbers_font', None) is None:
-            self._numbers_font = pygame.font.SysFont(
-                'Orbitron, monospace', font_size, True, False)
-        return self._numbers_font
+        font_size = min(*self.size) / 20
+        return pygame.font.SysFont(
+            'Orbitron, monospace', font_size, True, False)
 
     def draw_background(self, surface):
         width, height = surface.get_width(), surface.get_height()
         radius = min(width, height) / 2
         center = (width / 2, height / 2)
 
-        # surface.fill(self.background_color)
-        surface.fill((0, 0, 0, 0))  # Blank
-
         pygame.draw.circle(
             surface,
-            self.background_color,
+            self.inner_background_color,
             center,
             radius,
-            0)
+            0)  # width=0 -> fill
         pygame.draw.circle(
             surface,
             self.border_color,
@@ -68,10 +60,6 @@ class ClockDisplay(BaseDisplay, WithBackgroundMixin):
             y = center[1] + int(dy * (radius - 20))
 
             if angle % 30 == 0:
-                #color, width = self.labels_color, 3
-
-                #text_x = center[0] + int(math.cos(rad_angle) * (radius - 40))
-                #text_y = center[1] + int(math.sin(rad_angle) * (radius - 40))
                 if self.draw_numbers:
                     hour = ((angle / 30) + 3) % 12
                     if hour == 0:
@@ -81,6 +69,7 @@ class ClockDisplay(BaseDisplay, WithBackgroundMixin):
                     text_rect = text.get_rect()
                     text_rect.center = x, y
                     surface.blit(text, text_rect)
+
                 else:
                     pygame.draw.circle(
                         surface,
@@ -98,42 +87,29 @@ class ClockDisplay(BaseDisplay, WithBackgroundMixin):
         now = datetime.datetime.now()
         return (now.hour, now.minute, now.second)
 
-    def draw(self):
-        status = self.read_data()
+    def draw(self, surface):
+        hour, minute, second = self.read_data()
 
-        # If data was not changed, we can skip redrawing..
-        if getattr(self, '_prev_data', None) == status:
-            return
-        self._prev_data = status
-
-        # Draw a circle in the middle of the surface
-        # todo: we might want to stack surfaces to speed up time..
-        self.surface.fill(colors['base03'])
-        self.surface.blit(self.background_surface, (0, 0))
-
-        width = self.surface.get_width()
-        height = self.surface.get_height()
+        width = surface.get_width()
+        height = surface.get_height()
         radius = min(width, height) / 2
         center = (width / 2, height / 2)
 
-        now = datetime.datetime.now()
         needles = [
-            (((now.hour % 12) - 3) * 30, .8, colors['base2']),  # / 12 * 360
-            ((now.minute - 15) * 6, 1, colors['base2']),  # / 60 * 360
-            ((now.second - 15) * 6, 1, colors['base0'])  # / 60 * 360
+            (((hour % 12) - 3) * 30, .8, colors['base2']),  # / 12 * 360
+            ((minute - 15) * 6, 1, colors['base2']),  # / 60 * 360
+            ((second - 15) * 6, 1, colors['base0'])  # / 60 * 360
         ]
 
         for value, length, color in needles:
             angle = math.radians(value)
             x = center[0] + int(math.cos(angle) * radius * length)
             y = center[0] + int(math.sin(angle) * radius * length)
-            # pygame.draw.line(
-            #     self.surface, self.needle_color, center, (x, y), width)
             pygame.draw.aaline(
-                self.surface, color, center, (x, y))
+                surface, color, center, (x, y))
 
 
-class VirualHorizonDisplay(BaseDisplay, WithBackgroundMixin):
+class VirualHorizonDisplay(WithBackground, BaseDisplay):
     border_color = colors['base0']
     border_width = 1
     needle_pitch_color = colors['red']
@@ -162,7 +138,6 @@ class VirualHorizonDisplay(BaseDisplay, WithBackgroundMixin):
         #       more stuff...
 
         # Strategy for dummy data:
-
         def interpolate_val(ranges, cur_time):
             ## Interpolate a value from a time range
             for tstart, tend, vstart, vend in ranges:
@@ -196,18 +171,10 @@ class VirualHorizonDisplay(BaseDisplay, WithBackgroundMixin):
 
         return (int(pitch), int(roll))
 
-    def draw(self):
+    def draw(self, surface):
         status = self.read_data()
 
-        # If data was not changed, we can skip redrawing..
-        if getattr(self, '_prev_data', None) == status:
-            return
-        self._prev_data = status
-
-        self.surface.fill(colors['base03'])
-        self.surface.blit(self.background_surface, (0, 0))
-
-        width, height = self.surface_size
+        width, height = surface.get_width(), surface.get_height()
         pitch, roll = (math.radians(x) for x in status)
         radius = min(width, height) / 2
         center = (width / 2, height / 2)
@@ -219,8 +186,8 @@ class VirualHorizonDisplay(BaseDisplay, WithBackgroundMixin):
         horiz_h = center[1] + (math.sin(pitch) * radius)
         half_width = math.cos(pitch) * radius
 
-        pygame.draw.line(
-            self.surface,
+        pygame.draw.aaline(
+            surface,
             self.needle_pitch_color,
             (center[0] - half_width, horiz_h),
             (center[0] + half_width, horiz_h),
@@ -228,15 +195,15 @@ class VirualHorizonDisplay(BaseDisplay, WithBackgroundMixin):
 
         roll_h = math.cos(roll) * radius
         roll_v = math.sin(roll) * radius
-        pygame.draw.line(
-            self.surface,
+        pygame.draw.aaline(
+            surface,
             self.needle_roll_color,
             (center[0] - roll_h, center[1] - roll_v),
             (center[0] + roll_h, center[1] + roll_v),
             self.needle_width)
 
 
-class LinesDisplay(BaseDisplay, WithBackgroundMixin):
+class LinesDisplay(WithBackground, BaseDisplay):
     """
     A display showing a "lines" greaph
     """
@@ -269,6 +236,12 @@ class LinesDisplay(BaseDisplay, WithBackgroundMixin):
         self.lines = {}
         for i in xrange(self.lines_count):
             self.lines[i] = deque(maxlen=self.max_values)
+
+    @lazy_property
+    def background_surface(self):
+        surface = self.new_surface(alpha=False)
+        self.draw_background(surface)
+        return surface
 
     def _read_line(self, line_id, cur_time=None):
         if cur_time is None:
@@ -305,15 +278,16 @@ class LinesDisplay(BaseDisplay, WithBackgroundMixin):
         surface.fill(colors['base03'])
         pygame.draw.rect(surface, self.border_color, surface.get_rect(), 1)
 
-    def draw(self):
+    def draw(self, surface):
         status = self.read_data()
+
         for k, v in status.iteritems():
             self.lines[k].append(v)
 
-        self.surface.fill(colors['base03'])
-        self.surface.blit(self.background_surface, (0, 0))
+        #self.surface.fill(colors['base03'])
+        #self.surface.blit(self.background_surface, (0, 0))
 
-        width, height = self.surface_size
+        width, height = surface.get_width(), surface.get_height()
         x_units = float(width) / self.max_values
 
         ## Draw all the historical data
@@ -331,11 +305,9 @@ class LinesDisplay(BaseDisplay, WithBackgroundMixin):
                     self.ymax,
                     height, 0)
 
-                #draw_y = height / 2 - value
-
                 if prev_point is not None:
                     pygame.draw.aaline(
-                        self.surface,
+                        surface,
                         self.line_colors[line_id],
                         prev_point,
                         (draw_x, draw_y))

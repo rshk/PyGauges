@@ -2,8 +2,11 @@
 Base objects used in the application
 """
 
+import warnings
+
 import pygame
-from .utils import colors
+
+from .utils import lazy_property
 
 
 class Drawable(object):
@@ -17,86 +20,112 @@ class Drawable(object):
     the actual heavy lifting.
     """
 
-    def __init__(self, surface=None):
-        self.set_surface(surface)
+    def __init__(self, size, **kwargs):
+        """
+        :param size:
+            The size of the drawable space allocated
+            to this widget.
+        """
+        self.size = size
+        if len(kwargs):
+            warnings.warn(
+                'Unknown keyword arguments to drawable: {0}'.format(
+                    ', '.join(kwargs.keys())))
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, value):
+        if not isinstance(value, tuple) \
+                or len(value) != 2 \
+                or not all(isinstance(x, int) for x in value):
+            raise ValueError("size must be a (width, height) tuple")
+        self._size = value
+
+    def on_size_change(self):
+        # Should update the inner surface and make sure it's redrawn
+        # next time it's requested
+        del self._surface
+
+    @property
+    def width(self):
+        return self.size[0]
+
+    @property
+    def height(self):
+        return self.size[1]
 
     @property
     def surface(self):
-        ## It's a read-only property!
-        return getattr(self, '_surface', None)
-
-    @property
-    def surface_size(self):
-        return (self.surface.get_width(),
-                self.surface.get_height())
-
-    def set_surface(self, surface):
-        self._surface = surface
-
-    def update(self):
         """
-        The update() method is used to ask the widget
-        to update itself and return the inner surface.
+        Read-only property, returning a suitable surface
+        containing the rendered contents of the drawable.
         """
-        self.draw(self.surface)
-        return self.surface
+        #self._surface.fill((0, 0, 0, 0))
+        self.draw(self._surface)
+        return self._surface
+
+    @lazy_property
+    def _surface(self):
+        return self.new_surface()
+
+    def new_surface(self, size=None, alpha=False):
+        if size is None:
+            size = self.size
+        flags = 0
+        if alpha:
+            flags |= pygame.SRCALPHA
+        return pygame.surface.Surface(size, flags=flags)
 
     def draw(self, surface):
         """
-        Draw the current display status on the surface.
+        Draw the widget contents on the specified surface
         """
         pass
 
 
-class MultiLayerDrawable(Drawable):
-    layers = {
-        'background': 10,
-        'display': 50,
-        'foreground': 90,
-    }
+class WithBackground(object):
+    """
+    Mixin to add support for a background layer.
+    """
 
-    def __init__(self, *a, **kw):
-        super(MultiLayerDrawable, self).__init__(*a, **kw)
-        self._layers = dict((k, None) for k in self.layers)
-        self._layers_dirty = dict((k, True) for k in self.layers)
+    background_color = (0, 0, 0)
 
-    def set_surface(self, surface):
-        super(MultiLayerDrawable, self).set_surface(surface)
-        ## Recreate all surfaces for layers
-        for layer in self.layers:
-            self._layers[layer] = pygame.surface.Surface(self.surface_size)
-            self._layers_dirty[layer] = True
+    def on_size_change(self):
+        del self._surface
+        del self.background_surface
+        del self.foreground_surface
 
-    def draw(self, surface, force=False):
-        ## Iterate the layers, sorted by layer position.
-        ## Lower positions will float to the bottom.
-        layers = sorted(self.layers.iteritems(), key=lambda x: x[1])
-        for layer_id, layer_pos in layers:
-            surface = self._layers[layer_id]
-            ## Any caching is handled by the inner method
-            self.draw_layer(layer_id, surface)
+    @lazy_property
+    def background_surface(self):
+        """
+        The background surface doesn't change, a part from when
+        the display is resized.
+        """
+        surface = self.new_surface(alpha=False)
+        surface.fill(self.background_color)
+        self.draw_background(surface)
+        return surface
 
-    def update_layer(self, name):
-        """Allow for using custom methods to decide whether to update
-        the layer or not"""
+    @property
+    def surface(self):
+        """
+        Property returning the surface, with all the layers stacked.
+        """
+        surface = self._surface
+        surface.blit(self.background_surface, (0, 0))
+        self.draw(surface)
+        return surface
 
-        method_name = 'layer_{}_needs_updating'.format(name)
-        if self._layers_dirty[name]:
-            pass
-        if hasattr(self, method_name):
-            result = getattr(self, method_name)(name)
-        else:
-            self.draw_layer(name)(self._layers[name])
+    def draw(self, surface):
+        # todo: how do we check wheter the surface is already ok?
+        pass
 
-    def draw_layer(self, name, surface, force=False):
-        """Should call the appropriate method for drawing this layer"""
-
-        method_name = 'draw_{}'.format(name)
-        if hasattr(self, method_name):
-            return getattr(self, method_name)(surface)
+    def draw_background(self, surface):
+        pass
 
 
 class BaseDisplay(Drawable):
     """Base for all the display objects"""
-
-    pass

@@ -30,3 +30,20 @@ def rescale(value, r1min, r1max, r2min, r2max, force_float=False):
     between two scales.
     """
     return ((float(value - r1min) / (r1max - r1min)) * (r2max - r2min)) + r2min
+
+
+def lazy_property(fn):
+    attr_name = '_lazy_' + fn.__name__
+
+    def getter(self):
+        if not hasattr(self, attr_name):
+            setattr(self, attr_name, fn(self))
+        return getattr(self, attr_name)
+
+    def setter(self, value):
+        setattr(self, attr_name, value)
+
+    def deleter(self):
+        delattr(self, attr_name)
+
+    return property(fget=getter, fset=setter, fdel=deleter, doc=fn.__doc__)

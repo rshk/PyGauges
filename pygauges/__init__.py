@@ -23,20 +23,7 @@ Objects:
 
 import pygame
 
-from .mixins import WithChildrenMixin
-from .utils import colors
-
-
-class Dashboard(WithChildrenMixin, object):
-    background_color = (0x11, 0x11, 0x11)
-
-    def __init__(self, surface=None):
-        self.surface = surface
-
-    def draw(self):
-        if self.surface is None:
-            return
-        pass
+from .utils import colors, lazy_property
 
 
 class ApplicationQuit(Exception):
@@ -44,36 +31,42 @@ class ApplicationQuit(Exception):
     pass
 
 
-class Application(WithChildrenMixin, object):
+class Application(object):
     application_title = "PyGauges Dashboard"
     max_fps = 50
     show_fps = True
+    default_window_size = 1280, 1024
 
-    # _windowed_size = (1280, 1024)
-    # _fullscreen_size = None
     _fullscreen = False
 
-    def __init__(self):
+    def __init__(self, size=None, fullscreen=False):
 
         pygame.init()
         pygame.display.set_caption(self.application_title)
 
-        self._windowed_size = (1280, 1024)
-        self._fullscreen_size = max(pygame.display.list_modes())
-        self._fullscreen = False
+        if fullscreen:
+            self._fullscreen = True
+            self._windowed_size = self.default_window_size
+            self._fullscreen_size = size or max(pygame.display.list_modes())
+            self.set_video_mode(self._fullscreen_size, True)
 
-        ## Set window mode + resolution
-        self.set_video_mode(self._windowed_size, False)
+        else:
+            self._fullscreen = False
+            self._windowed_size = size or self.default_window_size
+            self._fullscreen_size = max(pygame.display.list_modes())
+            self.set_video_mode(self._windowed_size, False)
 
+        ## Clock, for FPS calculation and stuff
         self.clock = pygame.time.Clock()
 
         ## List of displays to be drawn on this application
         self.displays = []
 
+    @lazy_property
+    def fps_font(self):
         ## Orbitron is a quite cool font, under Open Font License
         ## See: https://www.theleagueofmoveabletype.com/orbitron
-        self.fps_font = pygame.font.SysFont(
-            'Orbitron, monospace', 20, True, False)
+        return pygame.font.SysFont('Orbitron, monospace', 20, True, False)
 
     def set_video_mode(self, resolution=None, fullscreen=False):
         """
@@ -153,7 +146,7 @@ class Application(WithChildrenMixin, object):
 
         # Draw sensors on this screen
         for display in self.displays:
-            display['display'].draw()
+            # display['display'].draw()  # <- called by widget itself
             self.screen.blit(
                 display['display'].surface,
                 display['position'])
